@@ -20,17 +20,25 @@ The objective of this project is to:
 
 ## System Architecture
 
+```
 Faculty Web Pages (HTML)
+        
         ↓
 Data Ingestion (Web Scraping)
+        
         ↓
 Data Transformation (Cleaning & Normalization)
+        
         ↓
 PostgreSQL Storage
+        
         ↓
 FastAPI Service
+        
         ↓
 Downstream NLP / Semantic Search
+```
+
 
 ---
 
@@ -64,13 +72,30 @@ Downstream NLP / Semantic Search
 
 ## API Endpoints
 
-### Get All Faculty
-GET /faculty
-
-Returns all faculty records as structured JSON data.
+The FastAPI service exposes faculty data through RESTful endpoints.  
+All responses are returned in **JSON format** and are documented using Swagger (OpenAPI).
 
 ---
+### Get All Faculty
+ 
+Returns the complete list of faculty members with cleaned and structured information.  
+This endpoint serves as the primary hand-off point for downstream analytics and NLP tasks.
 
+**Sample Response**
+```json
+[
+  {
+    "faculty_id": "F-1",
+    "name": "Abhishek Gupta",
+    "education": "PhD (Electrical and Computer Engineering)",
+    "research_interests": "Machine Learning, Signal Processing",
+    "profile_url": "https://...",
+    "clean_text": "machine learning signal processing ..."
+  }
+]
+```
+
+---
 ## How to Run the Project
 
 ### 1. Install Dependencies
@@ -107,4 +132,4 @@ uvicorn main:app --reload
 
 ## Author
 **Kunal Pramanik , Jinal Sasiya**  
-MSc Data Science | Data Engineering
+MSc Data Science 
