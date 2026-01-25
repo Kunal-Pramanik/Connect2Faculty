@@ -14,10 +14,10 @@ Faculty information is typically distributed across multiple web pages and store
 
 The objective of this project is to:
 
-- Crawl faculty profile data from multiple university faculty web pages
+- Crawl faculty profile data from university's multiple faculty web pages
 - Normalize and clean scraped HTML data
 - Store structured faculty information in a relational database
-- Serve the data via a REST API
+- Serve the data via a  API
 
 ---
 
@@ -144,7 +144,6 @@ uvicorn main:app --reload
 
 - Pagination and filtering in APIs
 - Faculty search by research area
-- Migration to PostgreSQL
 - Semantic search using embeddings
 - Containerized deployment using Docker
 
