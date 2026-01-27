@@ -50,20 +50,22 @@ FastAPI Service
 
 ## Database Design
 
-**Database:** `faculty.db`
+- **Database:** `faculty.db`
 
-**Table:** `faculty`
-
-| Column          | Type               | Description                |
-| --------------- | ------------------ | -------------------------- |
-| faculty_id     | TEXT (Primary Key) | Unique faculty identifier  |
-| name            | TEXT               | Faculty name               |
-| profile_url    | TEXT               | Faculty profile URL        |
-| education       | TEXT               | Education details          |
-| email           | TEXT               | Email address              |
-| contact_number | TEXT               | Contact number             |
-| research_area  | TEXT               | Research interests / areas |
-
+- **Table:** `faculty`
+- Here we scraped total 111 faculty's details
+- RangeIndex: 111 entries, 0 to 110
+-  Data columns (total 6 columns):
+   
+| Column          | Type               | Non-Null Count | Description                |
+|-----------------|--------------------|----------------|----------------------------|
+| faculty_id      | TEXT (Primary Key) | 111            | Unique faculty identifier  |
+| name            | TEXT               | 111            | Faculty name               |
+| profile_url     | TEXT               | 111            | Faculty profile URL        |
+| education       | TEXT               | 111            | Education details          |
+| email           | TEXT               | 110            | Email address              |
+| contact_number  | TEXT               | 107            | Contact number             |
+| research_area   | TEXT               | 108            | Research interests / areas |
 ---
 
 ## API Endpoints
