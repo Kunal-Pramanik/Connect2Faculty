@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI , Query
 from sqlalchemy import create_engine, text
 from pydantic import BaseModel
 from typing import List, Optional
