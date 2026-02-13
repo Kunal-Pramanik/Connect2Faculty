@@ -1,90 +1,89 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, text
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import List
-import numpy as np
-
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
+from fastapi.middleware.cors import CORSMiddleware
+import pandas as pd
+import numpy as np
+import pickle
+import os
 
-app = FastAPI(title="Faculty Semantic Recommender")
+# -------------------------
+# 1. SETUP APP & CORS
+# -------------------------
+app = FastAPI(title="Faculty Finder API", description="Semantic Search Engine for Faculty")
 
-# ✅ CORS (REQUIRED FOR PUBLIC WEBSITE)
+# Enable CORS so your frontend (localhost:3000 or public URL) can talk to this backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, replace "*" with your frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-DATABASE_URL = "sqlite:///faculty.db"
+# -------------------------
+# 2. GLOBAL VARIABLES (Load Once)
+# -------------------------
+print("⏳ Loading AI Model & Data... (This takes a few seconds)")
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
+# Load the Model
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
+# Load the Data
+with open("faculty_data.pkl", "rb") as f:
+    data = pickle.load(f)
+    df = data['dataframe']
+    embeddings = data['embeddings']
 
-class RecommendationRequest(BaseModel):
+print("✅ Server Ready! Model & Data Loaded.")
+
+# -------------------------
+# 3. DATA MODELS
+# -------------------------
+class SearchRequest(BaseModel):
     query: str
+    # Removed top_k from here since we want all matches
 
-class RecommendationResponse(BaseModel):
-    faculty_id: str
-    name: str
-    research_area: str
-    score: float
+@app.post("/search")
+async def search_faculty(request: SearchRequest):
+    try:
+        # A. Vectorize query
+        query_vector = model.encode([request.query])
 
-def get_faculty_data():
-    with engine.connect() as conn:
-        result = conn.execute(
-            text("""
-                SELECT faculty_id, name, research_area, education
-                FROM faculty
-                WHERE research_area IS NOT NULL
-            """)
-        )
-        return result.mappings().all()
+        # B. Calculate Similarity
+        scores = np.dot(embeddings, query_vector.T).flatten()
 
-def semantic_recommend(query: str, top_k: int = 6):
-    faculty_data = get_faculty_data()
+        # C. Sort scores (Highest first) - NO SLICING [:top_k]
+        sorted_indices = scores.argsort()[::-1]
 
-    faculty_texts = [
-        f"{row['research_area']} {row['education']}"
-        for row in faculty_data
-    ]
+        # D. Build Response
+        results = []
+        for idx in sorted_indices:
+            current_score = float(scores[idx])
+            
+            # Optional: Filter out completely irrelevant matches (noise)
+            # You can lower this to 0.0 if you want absolutely everyone
+            if current_score < 0.15: 
+                break 
 
-    faculty_embeddings = model.encode(faculty_texts)
-    query_embedding = model.encode([query])
+            faculty_data = df.iloc[idx]
+            results.append({
+                "name": faculty_data.get("Name", "Unknown"),
+                "specialization": faculty_data.get("Specialization", "N/A"),
+                "image_url": faculty_data.get("Image_URL", ""),
+                "profile_url": faculty_data.get("Profile_URL", ""),
+                "teaching": faculty_data.get("Teaching", "N/A"),
+                "publications": faculty_data.get("Publications", "N/A"),
+                "score": current_score
+            })
 
-    similarities = cosine_similarity(query_embedding, faculty_embeddings)[0]
+        return {"results": results}
 
-    ranked = sorted(
-        zip(faculty_data, similarities),
-        key=lambda x: x[1],
-        reverse=True
-    )
-
-    return [
-        {
-            "faculty_id": faculty["faculty_id"],
-            "name": faculty["name"],
-            "research_area": faculty["research_area"],
-            "score": round(float(score * 100), 2)
-        }
-        for faculty, score in ranked[:top_k]
-    ]
-
-@app.post("/recommend", response_model=List[RecommendationResponse])
-def recommend(request: RecommendationRequest):
-    return semantic_recommend(request.query)
-
-@app.get("/health")
-def health_check():
-    return {"status": "ok"}
-
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+# -------------------------
+# 5. HEALTH CHECK
+# -------------------------
 @app.get("/")
-def root():
-    return {"message": "Faculty Semantic Recommender API is running"}
+def home():
+    return {"message": "Faculty Search API is running! Go to /docs to test."}

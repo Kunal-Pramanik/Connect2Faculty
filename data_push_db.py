@@ -1,26 +1,43 @@
 import pandas as pd
 import sqlite3
 
-# Connect to SQLite
+
+
 conn = sqlite3.connect("faculty.db")
 cursor = conn.cursor()
 
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS faculty (
-    faculty_id TEXT,
+    faculty_id TEXT PRIMARY KEY,
     Name TEXT,
-    Education TEXT,
-    Research_area TEXT,
     Profile_URL TEXT,
+    Qualification TEXT,
+    Phone TEXT,
+    Address TEXT,
     Email TEXT,
-    Contact_Number TEXT,
-    Photo TEXT
+    Specialization TEXT,
+    Image_URL TEXT,
+    Biography TEXT,
+    Research_Interests TEXT,
+    Teaching TEXT,
+    Publications TEXT
 )
 """)
 
+
+
 df = pd.read_csv("dau_faculty.csv")
 
+# Rename columns to match SQL 
+df = df.rename(columns={
+    "Profile URL": "Profile_URL",
+    "Image URL": "Image_URL",
+    "Research Interests": "Research_Interests"
+})
+
+
+# INSERT DATA
 
 df.to_sql(
     "faculty",
@@ -32,4 +49,4 @@ df.to_sql(
 conn.commit()
 conn.close()
 
-print("Data pushed successfully .")
+print(" Data pushed successfully into SQLite")

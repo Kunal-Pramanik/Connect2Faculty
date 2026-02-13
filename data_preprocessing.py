@@ -1,29 +1,60 @@
 import pandas as pd
 import re
 
-df = pd.read_csv("daiictfaculty.csv")
+# -------------------------
+# LOAD DATA
+# -------------------------
+df = pd.read_csv("daiict_faculty_data.csv")
 df.columns = df.columns.str.strip()
 
+# -------------------------
+# TEXT CLEANING FUNCTION
+# -------------------------
 def clean_text(text):
-    if pd.isna(text):
+    if pd.isna(text) or text == "N/A":
         return ""
     text = text.lower()
     text = re.sub(r"[^a-z0-9\s]", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
-df["Research_area"] = df["Research_area"].apply(clean_text)
+# -------------------------
+# CLEAN RESEARCH INTERESTS
+# -------------------------
+df["Research Interests"] = df["Research Interests"].apply(clean_text)
 
+# -------------------------
+# CLEAN EMAILS
+# -------------------------
+df["Email"] = (
+    df["Email"]
+    .astype(str)
+    .str.replace("[at]", "@", regex=False)
+    .str.replace("[dot]", ".", regex=False)
+)
 
-#  DROP EMPTY ROWS
-df = df[df["Research_area"] != ""]
+# -------------------------
+# DROP EMPTY RESEARCH INTERESTS
+# -------------------------
+df = df[df["Research Interests"] != ""]
 
-# DROP DUPLICATE ROWS BASED ON CLEANED TEXT
+# -------------------------
+# RESET INDEX
+# -------------------------
 df = df.reset_index(drop=True)
 
+# -------------------------
 # ADD FACULTY ID
-df.insert(0, "faculty_id", [f"F-{str(i+1).zfill(2)}" for i in range(len(df))])
+# -------------------------
+df.insert(
+    0,
+    "faculty_id",
+    [f"F-{str(i + 1).zfill(3)}" for i in range(len(df))]
+)
 
+# -------------------------
+# SAVE CLEAN FILE
+# -------------------------
 df.to_csv("dau_faculty.csv", index=False)
 
 print("Remaining rows:", len(df))
