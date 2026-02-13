@@ -35,15 +35,15 @@ export default function Home() {
       {/* 1. CYBER NAVIGATION */}
       <nav className="border-b border-white/5 bg-black/20 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          
+          {/* LOGO & BRANDING GROUP */}
           <div className="flex items-center gap-4">
             
-            {/* EXACT LOGO RECREATION */}
+            {/* LOGO ICON BOX */}
             <div className="relative group cursor-pointer">
               <div className="absolute -inset-2 bg-gradient-to-br from-indigo-600 via-blue-500 to-cyan-400 rounded-2xl blur-md opacity-40 group-hover:opacity-60 transition duration-500"></div>
-              
               <div className="relative w-14 h-14 bg-[#080c17] rounded-2xl flex items-center justify-center border border-white/20 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
                 <div className="absolute inset-1 rounded-xl border border-cyan-500/20 shadow-[inset_0_0_10px_rgba(6,182,212,0.1)]"></div>
-                
                 <div className="relative flex items-center justify-center">
                   <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-indigo-400 via-blue-400 to-cyan-300 filter drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">
                     C
@@ -52,15 +52,14 @@ export default function Home() {
                 </div>
               </div>
             </div>
-      
-            {/* BRANDING TEXT - FIXED NESTING */}
+
+            {/* BRANDING TEXT - Gradient & Neon Glow */}
             <div className="flex flex-col">
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-1 drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]">
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-500">
                   Connect2Faculty
                 </span>
               </h1>
-            
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-[10px] text-blue-300/50 font-mono font-medium tracking-[0.2em] uppercase">
                   AI Research Collaboration
@@ -71,8 +70,9 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </div> {/* CLOSE branding container */}
-          
+
+          </div> {/* Close Branding Group */}
+
           {/* NAVBAR LINKS */}
           <div className="hidden md:flex gap-10 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
             <a href="#results" className="hover:text-cyan-400 transition-all">The Engine</a>
@@ -81,7 +81,8 @@ export default function Home() {
               Launch
             </button>
           </div>
-        </div>
+
+        </div> {/* Close max-w-7xl Container */}
       </nav>
 
       {/* 2. NEURAL HERO SECTION */}
@@ -96,6 +97,7 @@ export default function Home() {
             Find The <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300"> Best Faculty </span>
           </h1>
           
+          {/* SEARCH BAR */}
           <div className="relative group max-w-3xl mx-auto">
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
             <div className="relative flex flex-col md:flex-row gap-2 bg-[#0f172a] p-2 rounded-2xl border border-white/10 shadow-2xl">
@@ -151,7 +153,7 @@ export default function Home() {
                 <p className="text-sm text-slate-300 leading-relaxed line-clamp-3">{faculty.specialization}</p>
               </div>
               <a 
-                href={faculty.profile_url} target="_blank" rel="noreferrer"
+                href={faculty.profile_url} target="_blank" rel="noopener noreferrer"
                 className="p-4 text-center text-xs font-bold text-slate-400 hover:text-white border-t border-white/5 hover:bg-blue-600 transition-all"
               >
                 ACCESS PROFILE →
@@ -171,7 +173,7 @@ export default function Home() {
       <footer className="border-t border-white/5 py-12 px-6 bg-black/40">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="text-center md:text-left">
-            <h4 className="text-white font-bold text-lg mb-2">Developed by Data Riders</h4>
+            <h4 className="text-white font-bold text-lg mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">Developed by Data Riders</h4>
             <div className="flex gap-4 text-slate-400 text-sm">
               <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-blue-500"/> Kunal Pramanik</span>
               <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-cyan-500"/> Jinal Sasiya</span>
