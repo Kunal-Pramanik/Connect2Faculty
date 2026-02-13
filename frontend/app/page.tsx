@@ -35,17 +35,50 @@ export default function Home() {
       {/* 1. CYBER NAVIGATION */}
       <nav className="border-b border-white/5 bg-black/20 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <span className="text-white font-black text-xl">D</span>
+          <div className="flex items-center gap-4">
+            
+            {/* EXACT LOGO RECREATION */}
+            <div className="relative group cursor-pointer">
+              {/* Deep Purple/Blue Outer Glow (Luminance Layer) */}
+              <div className="absolute -inset-2 bg-gradient-to-br from-indigo-600 via-blue-500 to-cyan-400 rounded-2xl blur-md opacity-40 group-hover:opacity-60 transition duration-500"></div>
+              
+              {/* The "C" Container */}
+              <div className="relative w-14 h-14 bg-[#080c17] rounded-2xl flex items-center justify-center border border-white/20 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                {/* Internal Glowing Rings Effect */}
+                <div className="absolute inset-1 rounded-xl border border-cyan-500/20 shadow-[inset_0_0_10px_rgba(6,182,212,0.1)]"></div>
+                
+                {/* Central Logo Elements */}
+                <div className="relative flex items-center justify-center">
+                   {/* Glowing 'C' shape with exact color logic */}
+                  <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-indigo-400 via-blue-400 to-cyan-300 filter drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">
+                    C
+                  </span>
+                  {/* Small white graduation cap icon placeholder or dot */}
+                  <div className="absolute -bottom-1 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_white]"></div>
+                </div>
+              </div>
             </div>
-            <span className="text-xl font-bold tracking-tighter text-white">Connect2Faculty</span>
+      
+            {/* BRANDING TEXT */}
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-1">
+                Connect<span className="text-cyan-400">2</span>Faculty
+              </h1>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-slate-400 font-bold tracking-[0.3em] uppercase">AI Research Collaboration</span>
+                <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></div>
+              </div>
+            </div>
+      
           </div>
-          <div className="hidden md:flex gap-8 text-sm font-medium uppercase tracking-widest text-slate-400">
-            <a href="#results" className="hover:text-cyan-400 transition-colors">Results</a>
-            <div className="flex items-center gap-4 text-xs font-bold text-slate-500 border-l border-white/10 pl-6">
-              <span>TEAM: KUNAL & JINAL</span>
-            </div>
+          
+          {/* NAVBAR LINKS - Responsive hidden on small screens */}
+          <div className="hidden md:flex gap-10 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
+            <a href="#engine" className="hover:text-cyan-400 transition-all">The Engine</a>
+            <a href="#directory" className="hover:text-cyan-400 transition-all">Directory</a>
+            <button className="bg-white/5 border border-white/10 px-6 py-2 rounded-full text-white hover:bg-blue-600 hover:border-blue-500 transition-all duration-300">
+              Launch
+            </button>
           </div>
         </div>
       </nav>
@@ -59,7 +92,7 @@ export default function Home() {
             Semantic Intelligence Active
           </div>
           <h1 className="text-5xl md:text-7xl font-black text-white mb-8 tracking-tight leading-[1.1]">
-            Connect With <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300"> Best Faculty </span>
+            Find The <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300"> Best Faculty </span>
           </h1>
           
           {/* THE COMMAND CENTER SEARCH BAR - NOW CONNECTED */}
