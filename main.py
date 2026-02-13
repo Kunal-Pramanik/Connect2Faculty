@@ -10,7 +10,6 @@ import os
 # ---------------------------------------------------------
 # 🔒 SECURE WAY: Read from Environment Variable
 # ---------------------------------------------------------
-# This tells Python: "Go look in the secure vault for the key"
 HF_TOKEN = os.environ.get("HF_TOKEN") 
 
 API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
@@ -29,7 +28,6 @@ app.add_middleware(
 
 # 2. LOAD DATA (Lightweight!)
 print("Loading Faculty Data...")
-# We use try/except here just in case the file isn't found locally while testing
 try:
     with open("faculty_data.pkl", "rb") as f:
         data = pickle.load(f)
@@ -80,7 +78,9 @@ async def search_faculty(request: SearchRequest):
         results = []
         for idx in sorted_indices:
             current_score = float(scores[idx])
-            if current_score < 0.15: break 
+            
+            # --- FIX IS HERE: Lowered from 0.15 to 0.0 ---
+            if current_score < 0.0: break 
 
             faculty_data = df.iloc[idx]
             results.append({
