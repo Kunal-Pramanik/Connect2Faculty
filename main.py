@@ -7,6 +7,7 @@ import pickle
 import requests
 import os
 import time
+import threading
 
 # 🔒 SECURE WAY: Read from Environment Variable
 HF_TOKEN = os.environ.get("HF_TOKEN") 
@@ -23,7 +24,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# LOAD DATA
+# --- 🚀 NEW: KEEP-ALIVE MECHANISM ---
+def keep_alive():
+    """Pings the server every 10 minutes to prevent Render from sleeping."""
+    while True:
+        try:
+            # Replace this with your actual Render URL
+            requests.get("https://faculty-connect.onrender.com/")
+            print("Pinged self to stay awake!")
+        except Exception as e:
+            print(f"Keep-alive ping failed: {e}")
+        time.sleep(600) # 10 minutes
+
+# Start the keep-alive thread automatically
+threading.Thread(target=keep_alive, daemon=True).start()
+
+# --- LOAD DATA ---
 print("Loading Faculty Data...")
 try:
     with open("faculty_data.pkl", "rb") as f:
@@ -77,6 +93,7 @@ async def search_faculty(request: SearchRequest):
         results = []
         for idx in sorted_indices:
             current_score = float(scores[idx])
+            # Set to 0.0 to ensure matches are found
             if current_score < 0.0: break 
 
             faculty_data = df.iloc[idx]
@@ -98,4 +115,4 @@ async def search_faculty(request: SearchRequest):
 
 @app.get("/")
 def home():
-    return {"message": "Faculty Search API is Live (Resilient Mode)!"}
+    return {"message": "Faculty Search API is Live (Resilient & Awake Mode)!"}
