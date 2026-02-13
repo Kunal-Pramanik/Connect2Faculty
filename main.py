@@ -11,6 +11,7 @@ import threading
 
 # 🔒 SECURE WAY: Read from Environment Variable
 HF_TOKEN = os.environ.get("HF_TOKEN") 
+# ✅ Corrected Router URL for feature-extraction pipeline
 API_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction"
 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
@@ -24,19 +25,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 🚀 NEW: KEEP-ALIVE MECHANISM ---
+# --- 🚀 KEEP-ALIVE MECHANISM ---
 def keep_alive():
     """Pings the server every 10 minutes to prevent Render from sleeping."""
     while True:
         try:
-            # Replace this with your actual Render URL
-            requests.get("https://faculty-connect.onrender.com/")
+            # Poking the root endpoint
+            requests.get("https://faculty-connect.onrender.com/", timeout=10)
             print("Pinged self to stay awake!")
         except Exception as e:
             print(f"Keep-alive ping failed: {e}")
-        time.sleep(600) # 10 minutes
+        time.sleep(600)
 
-# Start the keep-alive thread automatically
 threading.Thread(target=keep_alive, daemon=True).start()
 
 # --- LOAD DATA ---
@@ -51,19 +51,26 @@ except Exception as e:
     print(f"❌ Critical Error loading data: {e}")
     df = None
 
-# HELPER: ASK HUGGING FACE WITH RETRY LOGIC
+# --- HELPER: ASK HUGGING FACE WITH RETRY LOGIC ---
 def query_hf_api(text):
-    for i in range(3):  # Try 3 times
+    for i in range(3):
         try:
             response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=20)
             result = response.json()
             
-            # If AI is still loading, wait and retry
+            # Handle model warming up
             if isinstance(result, dict) and "estimated_time" in result:
                 wait_time = result.get("estimated_time", 5)
-                print(f"⏳ AI is warming up... waiting {wait_time}s")
+                print(f"⏳ AI warming up... waiting {wait_time}s")
                 time.sleep(wait_time)
                 continue
+                
+            # 🛡️ FIX: Flatten nested list if necessary
+            # API often returns [[vector]] instead of [vector]
+            if isinstance(result, list) and len(result) > 0:
+                if isinstance(result[0], list):
+                    return result[0]  # Take the inner list
+                return result  # Already flat
                 
             return result
         except Exception as e:
@@ -82,18 +89,22 @@ async def search_faculty(request: SearchRequest):
     try:
         output = query_hf_api(request.query)
         
-        if not isinstance(output, list):
-            error_msg = output.get("error") if isinstance(output, dict) else "Unknown API Error"
+        # Check if output is a valid vector (list of numbers)
+        if not isinstance(output, list) or (len(output) > 0 and not isinstance(output[0], (int, float))):
+            error_msg = output.get("error") if isinstance(output, dict) else "Unexpected API Response Format"
+            print(f"API Error: {error_msg}")
             return {"results": [], "message": error_msg}
 
+        # 🎯 Perform Search
         query_vector = np.array(output)
+        # Dot product for similarity
         scores = np.dot(embeddings, query_vector.T).flatten()
         sorted_indices = scores.argsort()[::-1]
 
         results = []
         for idx in sorted_indices:
             current_score = float(scores[idx])
-            # Set to 0.0 to ensure matches are found
+            # Set to 0.0 to ensure results appear during initial testing
             if current_score < 0.0: break 
 
             faculty_data = df.iloc[idx]
@@ -107,11 +118,12 @@ async def search_faculty(request: SearchRequest):
                 "score": current_score
             })
 
+        print(f"Found {len(results)} matches for: {request.query}")
         return {"results": results}
 
     except Exception as e:
-        print(f"Server Crash: {e}")
-        return {"results": [], "message": "The server encountered a math error. Try another query."}
+        print(f"Server Crash during search: {e}")
+        return {"results": [], "message": f"Server Error: {str(e)}"}
 
 @app.get("/")
 def home():
