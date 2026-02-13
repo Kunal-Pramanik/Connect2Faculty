@@ -39,7 +39,7 @@ export default function Home() {
             <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-cyan-400 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
               <span className="text-white font-black text-xl">D</span>
             </div>
-            <span className="text-xl font-bold tracking-tighter text-white">DATA RIDERS</span>
+            <span className="text-xl font-bold tracking-tighter text-white">Connect2Faculty</span>
           </div>
           <div className="hidden md:flex gap-8 text-sm font-medium uppercase tracking-widest text-slate-400">
             <a href="#results" className="hover:text-cyan-400 transition-colors">Results</a>
@@ -59,7 +59,7 @@ export default function Home() {
             Semantic Intelligence Active
           </div>
           <h1 className="text-5xl md:text-7xl font-black text-white mb-8 tracking-tight leading-[1.1]">
-            Connect 2 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300"> Faculty .</span>
+            Connect With <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300"> Best Faculty </span>
           </h1>
           
           {/* THE COMMAND CENTER SEARCH BAR - NOW CONNECTED */}
@@ -102,7 +102,7 @@ export default function Home() {
               <div className="p-6 flex gap-4 bg-white/5">
                 <img 
                   src={faculty.image_url.startsWith("http") ? faculty.image_url : `https://www.daiict.ac.in${faculty.image_url}`} 
-                  className="w-16 h-16 rounded-xl object-cover grayscale group-hover:grayscale-0 transition-all duration-500 border border-white/10"
+                  className="w-16 h-16 rounded-xl object-cover transition-all duration-500 border border-white/10"
                   alt={faculty.name}
                 />
                 <div className="flex-1">
