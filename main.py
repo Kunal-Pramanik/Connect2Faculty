@@ -12,7 +12,8 @@ import os
 # ---------------------------------------------------------
 HF_TOKEN = os.environ.get("HF_TOKEN") 
 
-API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
+# --- 🚨 FIX IS HERE: UPDATED URL ---
+API_URL = "https://router.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 # 1. SETUP APP
@@ -62,12 +63,13 @@ async def search_faculty(request: SearchRequest):
         # Error handling if API is waking up
         if isinstance(output, dict) and "error" in output:
             print(f"HuggingFace Error: {output}")
-            return {"results": [], "message": "AI is warming up or Token is invalid. Try again in 10s"}
+            return {"results": [], "message": f"AI Error: {output['error']}"}
             
         # B. Convert list to numpy array
         if isinstance(output, list):
             query_vector = np.array(output)
         else:
+            print(f"Unexpected API Response: {output}")
             return {"results": [], "message": "API Error: Unexpected response format"}
 
         # C. Calculate Similarity
@@ -79,7 +81,7 @@ async def search_faculty(request: SearchRequest):
         for idx in sorted_indices:
             current_score = float(scores[idx])
             
-            # --- FIX IS HERE: Lowered from 0.15 to 0.0 ---
+            # --- SHOW ALL RESULTS (Threshold 0.0) ---
             if current_score < 0.0: break 
 
             faculty_data = df.iloc[idx]
@@ -101,4 +103,4 @@ async def search_faculty(request: SearchRequest):
 
 @app.get("/")
 def home():
-    return {"message": "Faculty Search API is Live (Secure Mode)!"}
+    return {"message": "Faculty Search API is Live (Updated URL)!"}
