@@ -87,24 +87,28 @@ async def search_faculty(request: SearchRequest):
         raise HTTPException(status_code=500, detail="Database not loaded")
 
     try:
+        # A. Get the embedding from AI
         output = query_hf_api(request.query)
         
-        # Check if output is a valid vector (list of numbers)
-        if not isinstance(output, list) or (len(output) > 0 and not isinstance(output[0], (int, float))):
-            error_msg = output.get("error") if isinstance(output, dict) else "Unexpected API Response Format"
-            print(f"API Error: {error_msg}")
+        # B. 🛡️ CRITICAL FIX: Extract the vector from the nested list
+        # Hugging Face often returns [[...]] for feature-extraction
+        if isinstance(output, list) and len(output) > 0:
+            if isinstance(output[0], list):
+                query_vector = np.array(output[0]) # Get the actual inner vector
+            else:
+                query_vector = np.array(output)
+        else:
+            error_msg = output.get("error") if isinstance(output, dict) else "Unknown API Error"
             return {"results": [], "message": error_msg}
 
-        # 🎯 Perform Search
-        query_vector = np.array(output)
-        # Dot product for similarity
+        # C. Calculate Similarity (The Search Engine)
         scores = np.dot(embeddings, query_vector.T).flatten()
         sorted_indices = scores.argsort()[::-1]
 
         results = []
         for idx in sorted_indices:
             current_score = float(scores[idx])
-            # Set to 0.0 to ensure results appear during initial testing
+            # Set to 0.0 to ensure results appear while testing
             if current_score < 0.0: break 
 
             faculty_data = df.iloc[idx]
@@ -122,8 +126,8 @@ async def search_faculty(request: SearchRequest):
         return {"results": results}
 
     except Exception as e:
-        print(f"Server Crash during search: {e}")
-        return {"results": [], "message": f"Server Error: {str(e)}"}
+        print(f"Server Error: {e}")
+        return {"results": [], "message": "The search engine hit a math error. Try again."}
 
 @app.get("/")
 def home():
