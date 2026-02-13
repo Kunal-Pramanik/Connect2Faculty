@@ -46,7 +46,7 @@ export default function Home() {
                 
                 <div className="relative flex items-center justify-center">
                   <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-indigo-400 via-blue-400 to-cyan-300 filter drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">
-                    🎓
+                    C
                   </span>
                   <div className="absolute -bottom-1 w-1.5 h-1.5 bg-white rounded-full shadow-[0_0_10px_white]"></div>
                 </div>
