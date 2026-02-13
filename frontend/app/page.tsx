@@ -29,23 +29,24 @@ export default function Home() {
     }
   };
 
+  // Helper to focus search bar
+  const focusSearch = () => {
+    document.getElementById("search-input")?.focus();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   return (
-    <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30">
+    <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30 scroll-smooth">
       
       {/* 1. CYBER NAVIGATION */}
       <nav className="border-b border-white/5 bg-black/20 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           
-          {/* BRANDING GROUP - CLEANED & FIXED NESTING */}
           <div className="flex items-center gap-4">
-            
-            {/* LOGO ICON BOX: Luminous 'C' */}
-            <div className="relative group cursor-pointer">
+            {/* LOGO ICON BOX */}
+            <div className="relative group cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
               <div className="absolute -inset-2 bg-gradient-to-br from-indigo-600 via-blue-500 to-cyan-400 rounded-2xl blur-md opacity-40 group-hover:opacity-60 transition duration-500"></div>
-              
               <div className="relative w-14 h-14 bg-[#080c17] rounded-2xl flex items-center justify-center border border-white/20 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-                <div className="absolute inset-1 rounded-xl border border-cyan-500/20 shadow-[inset_0_0_10px_rgba(6,182,212,0.1)]"></div>
-                
                 <div className="relative flex items-center justify-center">
                   <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-tr from-indigo-400 via-blue-400 to-cyan-300 filter drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">
                     ♨️
@@ -55,14 +56,13 @@ export default function Home() {
               </div>
             </div>
 
-            {/* BRANDING TEXT: Neon Gradient */}
+            {/* BRANDING TEXT */}
             <div className="flex flex-col">
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-1 drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]">
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-500">
                   Connect2Faculty
                 </span>
               </h1>
-            
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-[10px] text-blue-300/50 font-mono font-medium tracking-[0.2em] uppercase">
                   AI Research Collaboration
@@ -73,22 +73,24 @@ export default function Home() {
                 </div>
               </div>
             </div>
-          </div> {/* Close BRANDING GROUP */}
+          </div>
 
-          {/* NAVBAR LINKS */}
+          {/* NAVBAR LINKS - FUNCTIONAL */}
           <div className="hidden md:flex gap-10 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-            <a href="#results" className="hover:text-cyan-400 transition-all">The Engine</a>
+            <a href="#hero" className="hover:text-cyan-400 transition-all">The Engine</a>
             <a href="#results" className="hover:text-cyan-400 transition-all">Directory</a>
-            <button className="bg-white/5 border border-white/10 px-6 py-2 rounded-full text-white hover:bg-blue-600 hover:border-blue-500 transition-all duration-300">
+            <button 
+              onClick={focusSearch}
+              className="bg-white/5 border border-white/10 px-6 py-2 rounded-full text-white hover:bg-blue-600 hover:border-blue-500 transition-all duration-300"
+            >
               Launch
             </button>
           </div>
-
-        </div> {/* Close max-w-7xl */}
+        </div>
       </nav>
 
       {/* 2. NEURAL HERO SECTION */}
-      <header className="relative pt-20 pb-20 px-6 overflow-hidden">
+      <header id="hero" className="relative pt-20 pb-20 px-6 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-blue-900/20 via-transparent to-transparent -z-10" />
         
         <div className="max-w-4xl mx-auto text-center">
@@ -103,6 +105,7 @@ export default function Home() {
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
             <div className="relative flex flex-col md:flex-row gap-2 bg-[#0f172a] p-2 rounded-2xl border border-white/10 shadow-2xl">
               <input 
+                id="search-input"
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -124,17 +127,17 @@ export default function Home() {
       </header>
 
       {/* 3. SEARCH RESULTS */}
-      <main id="results" className="max-w-7xl mx-auto px-6 pb-24">
+      <main id="results" className="max-w-7xl mx-auto px-6 pb-24 min-h-[40vh]">
         {loading && (
           <div className="flex flex-col items-center py-20 animate-pulse">
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-blue-400 font-mono text-sm tracking-widest uppercase">Analyzing Semantic Layers...</p>
+            <p className="text-blue-400 font-mono text-sm tracking-widest uppercase text-center">Analyzing Semantic Layers...</p>
           </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {results.map((faculty, i) => (
-            <div key={i} className="group bg-[#0f172a]/50 border border-white/5 rounded-2xl overflow-hidden hover:border-blue-500/40 transition-all duration-500 flex flex-col">
+            <div key={i} className="group bg-[#0f172a]/50 border border-white/5 rounded-2xl overflow-hidden hover:border-blue-500/40 transition-all duration-500 flex flex-col hover:shadow-2xl hover:shadow-blue-500/10">
               <div className="p-6 flex gap-4 bg-white/5">
                 <img 
                   src={faculty.image_url.startsWith("http") ? faculty.image_url : `https://www.daiict.ac.in${faculty.image_url}`} 
@@ -155,16 +158,16 @@ export default function Home() {
               </div>
               <a 
                 href={faculty.profile_url} target="_blank" rel="noopener noreferrer"
-                className="p-4 text-center text-xs font-bold text-slate-400 hover:text-white border-t border-white/5 hover:bg-blue-600 transition-all"
+                className="p-4 text-center text-xs font-bold text-slate-400 hover:text-white border-t border-white/5 hover:bg-blue-600 transition-all uppercase tracking-widest"
               >
-                ACCESS PROFILE →
+                Access Profile →
               </a>
             </div>
           ))}
         </div>
 
         {!loading && hasSearched && results.length === 0 && (
-          <div className="text-center py-20 text-slate-500 font-mono uppercase tracking-widest text-sm">
+          <div className="text-center py-20 text-slate-500 font-mono uppercase tracking-widest text-sm border border-dashed border-white/10 rounded-3xl">
             Zero Matches Found in Research DNA.
           </div>
         )}
@@ -175,9 +178,15 @@ export default function Home() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="text-center md:text-left">
             <h4 className="text-white font-bold text-lg mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">Developed by Data Riders</h4>
-            <div className="flex gap-4 text-slate-400 text-sm">
-              <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-blue-500"/> Kunal Pramanik</span>
-              <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-cyan-500"/> Jinal Sasiya</span>
+            <div className="flex flex-wrap justify-center md:justify-start gap-6 text-slate-400 text-sm">
+              <span className="flex items-center gap-2 group cursor-default">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 group-hover:scale-150 transition-transform"/> 
+                Kunal Pramanik
+              </span>
+              <span className="flex items-center gap-2 group cursor-default">
+                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 group-hover:scale-150 transition-transform"/> 
+                Jinal Sasiya
+              </span>
             </div>
           </div>
           <div className="text-slate-500 text-[10px] font-mono uppercase tracking-[0.3em]">
