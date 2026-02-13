@@ -11,7 +11,6 @@ import threading
 
 # 🔒 SECURE WAY: Read from Environment Variable
 HF_TOKEN = os.environ.get("HF_TOKEN") 
-# ✅ Corrected Router URL for feature-extraction pipeline
 API_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction"
 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
@@ -27,10 +26,8 @@ app.add_middleware(
 
 # --- 🚀 KEEP-ALIVE MECHANISM ---
 def keep_alive():
-    """Pings the server every 10 minutes to prevent Render from sleeping."""
     while True:
         try:
-            # Poking the root endpoint
             requests.get("https://faculty-connect.onrender.com/", timeout=10)
             print("Pinged self to stay awake!")
         except Exception as e:
@@ -45,38 +42,35 @@ try:
     with open("faculty_data.pkl", "rb") as f:
         data = pickle.load(f)
         df = data['dataframe']
-        embeddings = data['embeddings'] 
-    print("✅ Data Loaded!")
+        embeddings = np.array(data['embeddings']) # Ensure it's a numpy array
+    print(f"✅ Data Loaded! Embeddings Shape: {embeddings.shape}")
 except Exception as e:
     print(f"❌ Critical Error loading data: {e}")
     df = None
 
-# --- HELPER: ASK HUGGING FACE WITH RETRY LOGIC ---
+# --- HELPER: ASK HUGGING FACE ---
 def query_hf_api(text):
     for i in range(3):
         try:
             response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=20)
             result = response.json()
             
-            # Handle model warming up
             if isinstance(result, dict) and "estimated_time" in result:
                 wait_time = result.get("estimated_time", 5)
                 print(f"⏳ AI warming up... waiting {wait_time}s")
                 time.sleep(wait_time)
                 continue
                 
-            # 🛡️ FIX: Flatten nested list if necessary
-            # API often returns [[vector]] instead of [vector]
             if isinstance(result, list) and len(result) > 0:
-                if isinstance(result[0], list):
-                    return result[0]  # Take the inner list
-                return result  # Already flat
+                # Extract first element if nested
+                vector = result[0] if isinstance(result[0], list) else result
+                return vector
                 
             return result
         except Exception as e:
             print(f"Retry {i+1} failed: {e}")
             time.sleep(2)
-    return {"error": "AI Service Timeout. Please try again in a moment."}
+    return {"error": "AI Service Timeout."}
 
 class SearchRequest(BaseModel):
     query: str
@@ -87,29 +81,30 @@ async def search_faculty(request: SearchRequest):
         raise HTTPException(status_code=500, detail="Database not loaded")
 
     try:
-        # A. Get the embedding from AI
+        # 1. Get embedding
         output = query_hf_api(request.query)
-        
-        # B. 🛡️ CRITICAL FIX: Extract the vector from the nested list
-        # Hugging Face often returns [[...]] for feature-extraction
-        if isinstance(output, list) and len(output) > 0:
-            if isinstance(output[0], list):
-                query_vector = np.array(output[0]) # Get the actual inner vector
-            else:
-                query_vector = np.array(output)
-        else:
-            error_msg = output.get("error") if isinstance(output, dict) else "Unknown API Error"
-            return {"results": [], "message": error_msg}
+        if not isinstance(output, list):
+            return {"results": [], "message": str(output.get("error", "API Error"))}
 
-        # C. Calculate Similarity (The Search Engine)
-        scores = np.dot(embeddings, query_vector.T).flatten()
-        sorted_indices = scores.argsort()[::-1]
+        # 2. Prepare Vector & Normalize
+        query_vector = np.array(output)
+        query_vector = query_vector / np.linalg.norm(query_vector) # ✨ Normalize for better matching
+
+        # 3. Calculate Scores (Dot Product)
+        # Check dimensions first
+        if query_vector.shape[0] != embeddings.shape[1]:
+            print(f"Dimension mismatch! Query: {query_vector.shape[0]}, DB: {embeddings.shape[1]}")
+            return {"results": [], "message": "Search model version mismatch."}
+
+        scores = np.dot(embeddings, query_vector)
+        sorted_indices = np.argsort(scores)[::-1]
 
         results = []
-        for idx in sorted_indices:
+        for idx in sorted_indices[:10]: # Limit to top 10 for speed
             current_score = float(scores[idx])
-            # Set to 0.0 to ensure results appear while testing
-            if current_score < 0.0: break 
+            
+            # Use a very low threshold during testing
+            if current_score < -1.0: break 
 
             faculty_data = df.iloc[idx]
             results.append({
@@ -122,13 +117,13 @@ async def search_faculty(request: SearchRequest):
                 "score": current_score
             })
 
-        print(f"Found {len(results)} matches for: {request.query}")
+        print(f"✅ Success: Found {len(results)} matches for '{request.query}'")
         return {"results": results}
 
     except Exception as e:
-        print(f"Server Error: {e}")
-        return {"results": [], "message": "The search engine hit a math error. Try again."}
+        print(f"❌ Server Error: {e}")
+        return {"results": [], "message": f"Calculation error: {str(e)}"}
 
 @app.get("/")
 def home():
-    return {"message": "Faculty Search API is Live (Resilient & Awake Mode)!"}
+    return {"message": "FacultyConnect API is Live and Awake!"}
