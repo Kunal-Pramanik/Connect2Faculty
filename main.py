@@ -7,64 +7,53 @@ import numpy as np
 import pickle
 import os
 
-# -------------------------
-# 1. SETUP APP & CORS
-# -------------------------
-app = FastAPI(title="Faculty Finder API", description="Semantic Search Engine for Faculty")
+# 1. SETUP APP
+app = FastAPI(title="Faculty Finder API")
 
-# Enable CORS so your frontend (localhost:3000 or public URL) can talk to this backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace "*" with your frontend URL
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# -------------------------
-# 2. GLOBAL VARIABLES (Load Once)
-# -------------------------
-print("⏳ Loading AI Model & Data... (This takes a few seconds)")
+# 2. GLOBAL VARIABLES (Start as None)
+model = None
+df = None
+embeddings = None
 
-# Load the Model
-model = SentenceTransformer('all-MiniLM-L6-v2')
+# 3. HELPER: LOAD MODEL ONLY WHEN NEEDED
+def load_resources():
+    global model, df, embeddings
+    if model is None:
+        print("⏳ Loading AI Model & Data... (First run only)")
+        model = SentenceTransformer('all-MiniLM-L6-v2')
+        
+        with open("faculty_data.pkl", "rb") as f:
+            data = pickle.load(f)
+            df = data['dataframe']
+            embeddings = data['embeddings']
+        print("✅ Model Loaded!")
 
-# Load the Data
-with open("faculty_data.pkl", "rb") as f:
-    data = pickle.load(f)
-    df = data['dataframe']
-    embeddings = data['embeddings']
-
-print("✅ Server Ready! Model & Data Loaded.")
-
-# -------------------------
-# 3. DATA MODELS
-# -------------------------
+# 4. SEARCH ENDPOINT
 class SearchRequest(BaseModel):
     query: str
-    # Removed top_k from here since we want all matches
 
 @app.post("/search")
 async def search_faculty(request: SearchRequest):
+    # Load the model now (if not already loaded)
+    load_resources()
+    
     try:
-        # A. Vectorize query
         query_vector = model.encode([request.query])
-
-        # B. Calculate Similarity
         scores = np.dot(embeddings, query_vector.T).flatten()
-
-        # C. Sort scores (Highest first) - NO SLICING [:top_k]
         sorted_indices = scores.argsort()[::-1]
 
-        # D. Build Response
         results = []
         for idx in sorted_indices:
             current_score = float(scores[idx])
-            
-            # Optional: Filter out completely irrelevant matches (noise)
-            # You can lower this to 0.0 if you want absolutely everyone
-            if current_score < 0.15: 
-                break 
+            if current_score < 0.15: break 
 
             faculty_data = df.iloc[idx]
             results.append({
@@ -81,9 +70,7 @@ async def search_faculty(request: SearchRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-# -------------------------
-# 5. HEALTH CHECK
-# -------------------------
+
 @app.get("/")
 def home():
-    return {"message": "Faculty Search API is running! Go to /docs to test."}
+    return {"message": "Faculty Search API is Live!"}
