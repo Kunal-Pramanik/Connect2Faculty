@@ -23,9 +23,7 @@ Developed a custom crawler to scrape and clean university faculty data, implemen
 - [Data Schema & Engineering](#data-schema--engineering)
 - [Semantic Search & Vector Retrieval](#semantic-search--vector-retrieval)
 - [Data Intelligence & Statistics](#data-intelligence--statistics)
-- [API Usage & Documentation](#api-usage--documentation)
-- [Frontend Features & UI/UX](#frontend-features--uiux)
-- [Screenshots & Live Demos](#screenshots--live-demos)
+- [API Usage](#api-usage)
 - [Installation & Setup](#installation--setup)
 - [Cloud Deployment & Resilience](#cloud-deployment--resilience)
 - [Help & Troubleshooting](#help--troubleshooting)
@@ -201,29 +199,194 @@ Unlike traditional search, Connect2Faculty understands the **intent** behind you
 ---
 ## <a id="data-intelligence--statistics"></a>📊 Data Intelligence & Statistics
 
-Derived from the comprehensive EDA performed in `data_pipeline/eda.ipynb` on the raw scraped dataset (112 initial records).
+### 📉 Global Dataset Insights( `data_eda.ipynb` )
+* **Education Quality**: 84.40% of faculty hold a PhD.
+* **Research Productivity**: Average of 7.41 publications per faculty (Range: 0 - 50).
+* **Information Density**: 55.05% have detailed teaching info available.
 
-### 📈 Global Dataset Insights
-* **Education Quality**: 84.82% of faculty hold a PhD.
-* **Research Productivity**: Average of 7.41 publications per faculty.
-* **Information Density**: 97.32% have teaching information available.
+### 📊 Full Column-wise Data Quality (Null Analysis)
 
-### 📉 Full Column-wise Data Quality (Null Analysis)
-
-| Column Name | Null Count | Null % | System Significance |
-| :--- | :--- | :--- | :--- |
-| **Name** | 0 | 0.00% | Primary UI identifier. |
-| **Profile URL** | 0 | 0.00% | Foundation for deep-crawling. |
-| **Qualification** | 2 | 1.79% | Academic background context. |
-| **Email** | 1 | 0.89% | Core contact point for students. |
-| **Specialization** | 0 | 0.00% | Secondary search anchor. |
-| **Image URL** | 0 | 0.00% | Visual profile representation. |
-| **Research Interests**| 93 | 83.04% | Primary vector embedding source. |
-| **Publications** | 44 | 39.29% | Research output context. |
+| # | Column Name | Non-Null Count | Availability | System Significance |
+| :--- | :--- | :--- | :--- | :--- |
+| 0 | **Name** | 112 | 100% | Primary UI display identifier. |
+| 1 | **Profile URL** | 112 | 100% | Foundation for deep-crawling. |
+| 2 | **Qualification** | 110 | 98.2% | Academic background context. |
+| 3 | **Phone** | 79 | 70.5% | Optional direct contact info. |
+| 4 | **Address** | 77 | 68.7% | Physical office location. |
+| 5 | **Email** | 111 | 99.1% | Core student-faculty contact. |
+| 6 | **Specialization** | 109 | 97.3% | Secondary semantic search anchor. |
+| 7 | **Image URL** | 112 | 100% | Visual profile representation. |
+| 8 | **Biography** | 69 | 61.6% | Detailed career context for NLP. |
+| 9 | **Research Interests**| 109 | 97.3% | Primary source for vector embeddings. |
+| 10 | **Teaching** | 60 | 53.5% | Pedagogical background. |
+| 11 | **Publications** | 70 | 62.5% | Research output context. |
 
 ### 🧠 Semantic Retrieval Intelligence
-* **Index Pruning**: Final index consists of 109 verified profiles for maximum search integrity.
-* **Vector Coverage**: 100% of specialization data was mapped to 384-dimensional latent space.
-* **Scraping Excellence**: 100% success rate on Image and Profile URL extraction.
+* **Index Density**: 109 high-quality profiles post-cleaning.
+* **Vector Coverage**: 100% mapping of research context into 384-dim space.
+* **Contact Efficiency**: 99.1% email availability for faculty discovery.
+
+---
+
+## <a id="api-usage"></a>🧪 API Usage
+
+The **Connect2Faculty** backend is powered by **FastAPI**, providing a high-concurrency asynchronous interface for both literal metadata retrieval and neural semantic search.
+
+---
+
+### ▶️ Start the Server
+
+To launch the backend locally, use the **Uvicorn ASGI server**:
+
+```bash
+uvicorn main:app --reload --port 8000
+```
+### 🔗 System Endpoints
+
+| Method | Endpoint                                   | Description                                                                 |
+|--------|--------------------------------------------|-----------------------------------------------------------------------------|
+| GET    | `/`                                        | Serves the integrated frontend UI.                                          |
+| GET    | `/faculty`                                 | Retrieves the full directory of **109 verified faculty records**.           |
+| GET    | `/faculty/search?query_str=...`            | Executes a **keyword-based search** across names and specializations.       |
+| GET    | `/faculty/semantic-search?query_str=...`   | **AI-Powered Retrieval**: Maps user intent into a **384-dimensional vector space**. |
+
+### 📌 Example: Semantic Search Request
+
+**Request**
+```http
+GET /faculty/semantic-search?query_str=deep learning for healthcare
+```
+**Sample Response**
+```json
+{
+  "query": "deep learning for healthcare",
+  "results": [
+    {
+      "faculty_id": "F-005",
+      "name": "Ajay beniwal",
+      "match_percentage": "94.2%",
+      "specialization": "Flexible and Printable Electronics for Healthcare...",
+      "email": "ajay_beniwal@dau.ac.in"
+    }
+  ]
+}
+```
+
+---
+
+## <a id="installation--setup"></a>⚙️ Installation & Setup: A Step-by-Step Guide
+
+This guide walks you through setting up the complete **Connect2Faculty** ecosystem, ensuring the data pipeline, AI backend, and user interface are fully synchronized.
+
+---
+
+## Step 1: Environment Preparation
+
+Before beginning, ensure you have **Python 3.10+** and **Node.js (LTS)** installed on your system.
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/Kunal-Pramanik/Faculty-Finder.git
+cd Faculty-Finder
+```
+### 2. Obtain an API Token
+
+- Visit **Hugging Face** and generate a free **Access Token**.
+- This token is required to vectorize search queries in real time.
+
+---
+
+## Step 2: Backend & AI Engine Setup
+
+The backend handles the semantic search logic and serves the faculty data.
+
+### 1. Navigate to Backend
+
+```bash
+cd backend
+```
+### 2. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+### Configure Environment Variables
+
+Create a `.env` file inside the `backend` directory and add your token:
+
+```env
+HF_TOKEN=your_hugging_face_token_here
+```
+### 4. Launch the FastAPI Server
+
+```bash
+uvicorn main:app --reload --port 8000
+```
+- The server will now be live at: ``` http://localhost:8000```
+
+---
+
+## Step 3: Frontend & Dashboard Setup
+
+The frontend provides the responsive interface for interacting with the semantic search engine.
+
+### 1. Navigate to Frontend
+Open a new terminal window and run:
+
+    cd frontend
+
+### 2. Install Node Packages
+
+    npm install
+
+### 3. Start the Development Server
+
+    npm run dev
+
+The dashboard will be accessible at:``` http://localhost:3000```
+
+---
+## Step 4: Data Pipeline (Optional)
+
+If you wish to re-scrape or update the faculty database, follow these steps inside the `data_pipeline` directory.
+
+### 1. Run the Scraper
+- Execute `scrapy.py` to crawl institutional pages and collect raw HTML.
+
+### 2. Pre-process Data
+- Run `data_preprocessing.py` to clean text and de-obfuscate emails.
+
+### 3. Update Database
+- Run `data_push_db.py` to commit changes to the SQLite and Pickle storage layers.
+
+---
+## <a id="cloud-deployment--resilience"></a>☁️ Cloud Deployment & Resilience
+
+The system is architected for high availability and consistent performance in a production environment.
+
+* **Decoupled Deployment**: The **FastAPI** backend is hosted on **Render**, while the **Next.js 14** frontend is deployed on **Vercel** for optimal edge delivery.
+* **Self-Healing Thread**: Implemented a background **Keep-Alive Thread** in `main.py` that periodically pings the server instance to prevent Render's free tier from entering "sleep mode," ensuring zero cold-start latency for users.
+* **Inference Offloading**: Leverages the **Hugging Face Inference API** to handle heavy transformer computations, keeping the core backend lightweight and cost-efficient.
+* **State Persistence**: Uses serialized **Pickle** storage to ensure the vector database is instantly available across server restarts.
+
+---
+## <a id="help--troubleshooting"></a>❓ Help & Troubleshooting
+
+| Issue | Solution |
+| :--- | :--- |
+| **API Error: 401 Unauthorized** | Ensure your `HF_TOKEN` is correctly set in your environment variables. |
+| **Search Latency (Cold Start)** | The first query may take ~20s if the Hugging Face model is warming up. |
+| **ModuleNotFoundError** | Run `pip install -r requirements.txt` to ensure all NLP dependencies are met. |
+| **Empty Search Results** | Verify that `faculty_data.pkl` is present in the backend directory. |
+| **Server Idling** | If the API is unresponsive, restart the service to reactivate the Keep-Alive thread. |
+
+----
+## <a id="the-data-riders-team"></a>👥 The Data Riders Team
+
+This project was developed by **The Data Riders** to streamline faculty discovery through AI and robust data pipelines.
+
+* **Kunal Pramanik** – Data Engineering & Backend Architecture.
+* **Jinal Sasiya** – Frontend Development & UI/UX Design.
 
 ---
