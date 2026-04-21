@@ -1,21 +1,17 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
-import numpy as np
-import pickle
-import requests
 import os
 import time
 import threading
+import pickle
+import numpy as np
+import requests
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
-# 🔒 SECURE: Must be set in Render Environment Variables
+# --- CONFIGURATION ---
 HF_TOKEN = os.environ.get("HF_TOKEN") 
-API_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction"
-# Added User-Agent to prevent potential API blocks
-headers = {
-    "Authorization": f"Bearer {HF_TOKEN}",
-    "User-Agent": "Connect2Faculty-App"
-}
+API_URL = "https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2"
+headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
 app = FastAPI(title="Connect2Faculty AI Engine")
 
@@ -27,10 +23,49 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 🚀 KEEP-ALIVE ---
+# --- DATABASE LOADING ---
+df = None
+embeddings = None
+
+def load_data():
+    global df, embeddings
+    try:
+        with open("faculty_data.pkl", "rb") as f:
+            data = pickle.load(f)
+            df = data['dataframe']
+            embeddings = np.array(data['embeddings'])
+            # Pre-normalize embeddings for faster cosine similarity calculation
+            norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+            embeddings = embeddings / (norms + 1e-9)
+        print(f"✅ Database Loaded: {len(df)} records.")
+    except Exception as e:
+        print(f"❌ Critical Load Error: {e}")
+
+load_data()
+
+# --- UTILITIES ---
+def get_embedding(text):
+    """Fetches vector from HF API with retry logic for cold starts."""
+    for _ in range(3):
+        try:
+            response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=20)
+            result = response.json()
+            
+            if isinstance(result, dict) and "estimated_time" in result:
+                time.sleep(result["estimated_time"])
+                continue
+                
+            vector = np.array(result).flatten()
+            if vector.size == 384:
+                return vector / (np.linalg.norm(vector) + 1e-9)
+        except:
+            time.sleep(1)
+    return None
+
 def keep_alive():
     while True:
         try:
+            # Replace with your actual deployment URL
             requests.get("https://faculty-connect.onrender.com/", timeout=10)
         except:
             pass
@@ -38,100 +73,65 @@ def keep_alive():
 
 threading.Thread(target=keep_alive, daemon=True).start()
 
-# --- LOAD DATA ---
-print("🚀 Initializing Faculty Database...")
-try:
-    with open("faculty_data.pkl", "rb") as f:
-        data = pickle.load(f)
-        df = data['dataframe']
-        embeddings = np.array(data['embeddings']) 
-    print(f"✅ Data Loaded! Embeddings shape: {embeddings.shape}")
-except Exception as e:
-    print(f"❌ DATABASE ERROR: {e}")
-    df = None
-    embeddings = None
-
-def query_hf_api(text):
-    """Converts text to a 384-dimensional semantic vector"""
-    for i in range(5): # Increased retries for stability
-        try:
-            response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=25)
-            result = response.json()
-            
-            # Handle Cold-Starts or API errors
-            if isinstance(result, dict) and "error" in result:
-                err_msg = result["error"].lower()
-                if "loading" in err_msg or "estimated_time" in result:
-                    wait_time = result.get("estimated_time", 15)
-                    print(f"⏳ Model loading... waiting {wait_time}s")
-                    time.sleep(wait_time)
-                    continue
-                print(f"❌ HF API Error: {result['error']}")
-                return None
-            
-            # Force Flattening to resolve 'Mismatch 1 vs 384'
-            res = np.array(result).flatten()
-            if res.size == 384:
-                return res.tolist()
-            else:
-                print(f"❌ Dimension Mismatch! Received {res.size} dims")
-                return None
-                
-        except Exception as e:
-            print(f"Retry {i+1} failed: {e}")
-            time.sleep(2)
-    return None
-
+# --- API ENDPOINTS ---
 class SearchRequest(BaseModel):
     query: str
 
 @app.post("/search")
 async def search(request: SearchRequest):
     if df is None or embeddings is None:
-        raise HTTPException(status_code=500, detail="Database not loaded properly.")
-    
-    raw_vector = query_hf_api(request.query)
-    
-    if not raw_vector:
-        return {"results": [], "message": "AI model is still warming up. Try again in 30s."}
+        raise HTTPException(status_code=500, detail="Database not initialized.")
 
-    query_vec = np.array(raw_vector).flatten()
-    
-    if query_vec.shape[0] != 384:
-        return {"results": [], "message": "AI model dimension mismatch."}
+    user_query = request.query.strip().lower()
+    final_results = []
+    seen_names = set()
 
-    # 3. Calculate Normalized Cosine Similarity
-    try:
-        # Prevent division by zero if vector is empty
-        norm_q = query_vec / (np.linalg.norm(query_vec) + 1e-9)
-        norm_e = embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-9)
+    # 1. PRIORITY MATCH: Name-based Search (Fixes the 'Abhishek' issue)
+    # We look for the query string inside the 'Name' column
+    name_matches = df[df['Name'].str.lower().str.contains(user_query, na=False)]
+    
+    for _, row in name_matches.iterrows():
+        name = row.get("Name", "Unknown")
+        final_results.append({
+            "name": name,
+            "specialization": row.get("Specialization", "N/A"),
+            "image_url": row.get("Image_URL", ""),
+            "profile_url": row.get("Profile_URL", ""),
+            "score": 1.0, # Exact/Partial name matches get top priority
+            "match_type": "name"
+        })
+        seen_names.add(name)
+
+    # 2. SEMANTIC MATCH: Topic-based Search (Only if we need more results)
+    if len(final_results) < 10:
+        query_vec = get_embedding(user_query)
         
-        scores = np.dot(norm_e, norm_q)
-        indices = np.argsort(scores)[::-1][:15]
+        if query_vec is not None:
+            # Calculate cosine similarities
+            scores = np.dot(embeddings, query_vec)
+            top_indices = np.argsort(scores)[::-1]
 
-        results = []
-        for idx in indices:
-            if scores[idx] < 0.01: continue 
-            
-            row = df.iloc[idx]
-            results.append({
-                "name": row.get("Name", "Unknown"),
-                "specialization": row.get("Specialization", "N/A"),
-                "image_url": row.get("Image_URL", ""),
-                "profile_url": row.get("Profile_URL", ""),
-                "score": float(scores[idx])
-            })
+            for idx in top_indices:
+                row = df.iloc[idx]
+                name = row.get("Name", "Unknown")
+                
+                # Skip if already added via name match or if score is too low
+                if name in seen_names or scores[idx] < 0.25:
+                    continue
+                
+                final_results.append({
+                    "name": name,
+                    "specialization": row.get("Specialization", "N/A"),
+                    "image_url": row.get("Image_URL", ""),
+                    "profile_url": row.get("Profile_URL", ""),
+                    "score": float(scores[idx]),
+                    "match_type": "semantic"
+                })
+                seen_names.add(name)
+                if len(final_results) >= 15: break
 
-        print(f"✅ Found {len(results)} matches for: {request.query}")
-        return {"results": results}
-    except Exception as e:
-        print(f"❌ Math Error: {e}")
-        return {"results": [], "message": "Error calculating similarity."}
+    return {"results": final_results[:15]}
 
 @app.get("/")
 def home():
-    return {
-        "message": "API is online!", 
-        "status": "Ready", 
-        "db_entries": len(df) if df is not None else 0
-    }
+    return {"status": "online", "count": len(df) if df is not None else 0}
