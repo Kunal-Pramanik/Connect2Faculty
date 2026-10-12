@@ -1,273 +1,261 @@
+
 from fastapi import FastAPI, HTTPException
-
 from pydantic import BaseModel
-
 from fastapi.middleware.cors import CORSMiddleware
-
+from typing import Optional, List
 import numpy as np
-
 import pickle
-
 import requests
-
 import os
-
 import time
-
 import threading
 
-
-
-# 🔒 SECURE: Must be set in Render Environment Variables
-
-HF_TOKEN = os.environ.get("HF_TOKEN") 
-
-API_URL = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction"
-
-# Added User-Agent to prevent potential API blocks
+# Hugging Face fallback (used only when no embedding is supplied)
+HF_TOKEN = os.environ.get("HF_TOKEN")
+API_URL = (
+    "https://router.huggingface.co/hf-inference/models/"
+    "sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction"
+)
 
 headers = {
-
     "Authorization": f"Bearer {HF_TOKEN}",
-
     "User-Agent": "Connect2Faculty-App"
-
 }
-
-
 
 app = FastAPI(title="Connect2Faculty AI Engine")
 
-
-
 app.add_middleware(
-
     CORSMiddleware,
-
     allow_origins=["*"],
-
     allow_credentials=True,
-
     allow_methods=["*"],
-
     allow_headers=["*"],
-
 )
 
 
-
-# --- 🚀 KEEP-ALIVE ---
-
+# Keep-alive
 def keep_alive():
-
     while True:
-
         try:
-
-            requests.get("https://faculty-connect.onrender.com/", timeout=10)
-
-        except:
-
+            requests.get(
+                "https://faculty-connect.onrender.com/",
+                timeout=10
+            )
+        except Exception:
             pass
 
         time.sleep(600)
 
 
-
 threading.Thread(target=keep_alive, daemon=True).start()
 
 
-
-# --- LOAD DATA ---
-
-print("🚀 Initializing Faculty Database...")
+# Load faculty database
+print("Initializing Faculty Database...")
 
 try:
-
     with open("faculty_data.pkl", "rb") as f:
-
         data = pickle.load(f)
 
-        df = data['dataframe']
+    df = data["dataframe"]
+    embeddings = np.asarray(data["embeddings"], dtype=np.float32)
 
-        embeddings = np.array(data['embeddings']) 
+    if embeddings.ndim != 2 or embeddings.shape[1] != 384:
+        raise ValueError(
+            f"Expected embeddings shape (N, 384), got {embeddings.shape}"
+        )
 
-    print(f"✅ Data Loaded! Embeddings shape: {embeddings.shape}")
+    if len(df) != len(embeddings):
+        raise ValueError(
+            "Faculty records and embeddings have different lengths."
+        )
+
+    print(
+        f"Database loaded: {len(df)} faculty records; "
+        f"embedding shape: {embeddings.shape}"
+    )
 
 except Exception as e:
-
-    print(f"❌ DATABASE ERROR: {e}")
-
+    print(f"DATABASE ERROR: {e}")
     df = None
-
     embeddings = None
 
 
-
+# Hugging Face fallback for text-only requests
 def query_hf_api(text):
+    if not HF_TOKEN:
+        print("HF_TOKEN is missing.")
+        return None
 
-    """Converts text to a 384-dimensional semantic vector"""
-
-    for i in range(5): # Increased retries for stability
-
+    for attempt in range(3):
         try:
-
-            response = requests.post(API_URL, headers=headers, json={"inputs": text}, timeout=25)
+            response = requests.post(
+                API_URL,
+                headers=headers,
+                json={"inputs": text},
+                timeout=25
+            )
 
             result = response.json()
 
-            
+            if response.status_code >= 400:
+                error = result.get("error", response.text)
+                print(f"HF API error ({response.status_code}): {error}")
 
-            # Handle Cold-Starts or API errors
-
-            if isinstance(result, dict) and "error" in result:
-
-                err_msg = result["error"].lower()
-
-                if "loading" in err_msg or "estimated_time" in result:
-
-                    wait_time = result.get("estimated_time", 15)
-
-                    print(f"⏳ Model loading... waiting {wait_time}s")
-
-                    time.sleep(wait_time)
-
+                # Retry only when the model is loading.
+                if isinstance(result, dict) and (
+                    "loading" in str(error).lower()
+                    or "estimated_time" in result
+                ):
+                    wait = min(
+                        float(result.get("estimated_time", 10)), 30
+                    )
+                    time.sleep(wait)
                     continue
 
-                print(f"❌ HF API Error: {result['error']}")
-
                 return None
 
-            
-
-            # Force Flattening to resolve 'Mismatch 1 vs 384'
-
-            res = np.array(result).flatten()
-
-            if res.size == 384:
-
-                return res.tolist()
-
-            else:
-
-                print(f"❌ Dimension Mismatch! Received {res.size} dims")
-
+            if isinstance(result, dict) and "error" in result:
+                print(f"HF API error: {result['error']}")
                 return None
 
-                
+            vector = np.asarray(result, dtype=np.float32).flatten()
+
+            if vector.size != 384:
+                print(f"Unexpected HF embedding size: {vector.size}")
+                return None
+
+            if not np.isfinite(vector).all():
+                print("HF returned non-finite embedding values.")
+                return None
+
+            return vector.tolist()
 
         except Exception as e:
-
-            print(f"Retry {i+1} failed: {e}")
-
+            print(f"HF attempt {attempt + 1} failed: {e}")
             time.sleep(2)
 
     return None
 
 
-
+# Accept either text or a browser-generated embedding
 class SearchRequest(BaseModel):
-
-    query: str
-
+    query: str = ""
+    embedding: Optional[List[float]] = None
 
 
 @app.post("/search")
-
 async def search(request: SearchRequest):
-
     if df is None or embeddings is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Faculty database is not loaded."
+        )
 
-        raise HTTPException(status_code=500, detail="Database not loaded properly.")
+    # Prefer the embedding generated by the frontend.
+    if request.embedding is not None:
+        query_vec = np.asarray(
+            request.embedding, dtype=np.float32
+        ).flatten()
 
-    
+        if query_vec.size != 384:
+            raise HTTPException(
+                status_code=422,
+                detail="Embedding must contain exactly 384 values."
+            )
 
-    raw_vector = query_hf_api(request.query)
+        if not np.isfinite(query_vec).all():
+            raise HTTPException(
+                status_code=422,
+                detail="Embedding contains invalid numeric values."
+            )
 
-    
+    else:
+        # Temporary fallback for the existing frontend.
+        if not request.query.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="Provide a query or an embedding."
+            )
 
-    if not raw_vector:
+        raw_vector = query_hf_api(request.query)
 
-        return {"results": [], "message": "AI model is still warming up. Try again in 30s."}
+        if raw_vector is None:
+            return {
+                "results": [],
+                "message": (
+                    "Embedding generation failed. "
+                    "Send a browser-generated embedding instead."
+                )
+            }
 
-
-
-    query_vec = np.array(raw_vector).flatten()
-
-    
-
-    if query_vec.shape[0] != 384:
-
-        return {"results": [], "message": "AI model dimension mismatch."}
-
-
-
-    # 3. Calculate Normalized Cosine Similarity
+        query_vec = np.asarray(raw_vector, dtype=np.float32)
 
     try:
+        query_norm = np.linalg.norm(query_vec)
 
-        # Prevent division by zero if vector is empty
+        if query_norm < 1e-9:
+            raise HTTPException(
+                status_code=422,
+                detail="Query embedding cannot be a zero vector."
+            )
 
-        norm_q = query_vec / (np.linalg.norm(query_vec) + 1e-9)
+        # Normalize query and faculty vectors.
+        norm_q = query_vec / query_norm
 
-        norm_e = embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-9)
+        embedding_norms = np.linalg.norm(
+            embeddings, axis=1, keepdims=True
+        )
 
-        
+        norm_e = embeddings / np.maximum(embedding_norms, 1e-9)
 
+        # Cosine similarity
         scores = np.dot(norm_e, norm_q)
-
         indices = np.argsort(scores)[::-1][:15]
-
-
 
         results = []
 
         for idx in indices:
-
-            if scores[idx] < 0.01: continue 
-
-            
+            if scores[idx] < 0.01:
+                continue
 
             row = df.iloc[idx]
 
             results.append({
-
-                "name": row.get("Name", "Unknown"),
-
-                "specialization": row.get("Specialization", "N/A"),
-
-                "image_url": row.get("Image_URL", ""),
-
-                "profile_url": row.get("Profile_URL", ""),
-
+                "name": str(row.get("Name", "Unknown")),
+                "specialization": str(
+                    row.get("Specialization", "N/A")
+                ),
+                "image_url": str(row.get("Image_URL", "") or ""),
+                "profile_url": str(
+                    row.get("Profile_URL", "") or ""
+                ),
                 "score": float(scores[idx])
-
             })
 
-
-
-        print(f"✅ Found {len(results)} matches for: {request.query}")
+        print(
+            f"Found {len(results)} matches. "
+            f"Embedding source: "
+            f"{'browser' if request.embedding is not None else 'HF'}"
+        )
 
         return {"results": results}
 
+    except HTTPException:
+        raise
+
     except Exception as e:
-
-        print(f"❌ Math Error: {e}")
-
-        return {"results": [], "message": "Error calculating similarity."}
-
+        print(f"Similarity calculation error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error calculating faculty similarity."
+        )
 
 
 @app.get("/")
-
 def home():
-
     return {
-
-        "message": "API is online!", 
-
-        "status": "Ready", 
-
+        "message": "API is online!",
+        "status": "Ready",
         "db_entries": len(df) if df is not None else 0
-
     }
