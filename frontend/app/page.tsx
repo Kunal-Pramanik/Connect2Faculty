@@ -1,5 +1,8 @@
 "use client";
 import { useState } from "react";
+import { pipeline } from "@huggingface/transformers";
+
+let embeddingPipeline: any = null;
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -7,34 +10,65 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
+
   const handleSearch = async () => {
-    if (!query) return;
+    if (!query.trim()) return;
+  
     setLoading(true);
     setHasSearched(true);
-    setResults([]); // Clear previous results immediately
-
+    setResults([]);
+  
     try {
-      const response = await fetch("https://faculty-connect.onrender.com/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: query }),
+      // Load the embedding model only once.
+      if (!embeddingPipeline) {
+        embeddingPipeline = await pipeline(
+          "feature-extraction",
+          "Xenova/all-MiniLM-L6-v2"
+        );
+      }
+  
+      // Generate the query embedding in the browser.
+      const output = await embeddingPipeline(query.trim(), {
+        pooling: "mean",
+        normalize: true,
       });
-      
-      if (!response.ok) throw new Error("API Failure");
-      
+  
+      const embedding = output.tolist()[0];
+  
+      if (!embedding || embedding.length !== 384) {
+        throw new Error("Invalid embedding dimensions.");
+      }
+  
+      // Send the embedding to Render.
+      const response = await fetch(
+        "https://faculty-connect.onrender.com/search",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ embedding }),
+        }
+      );
+  
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+  
       const data = await response.json();
-      console.log("Search Results Received:", data); // Debugging line for Laptop
-
-      if (data && Array.isArray(data.results)) {
+      console.log("Search Results Received:", data);
+  
+      if (Array.isArray(data.results)) {
         setResults(data.results);
+      } else {
+        throw new Error("Invalid API response.");
       }
     } catch (error) {
       console.error("Search Error:", error);
-      alert("AI Server is waking up. Please try again in 30 seconds.");
+      alert("Search failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[#030712] text-slate-200 font-sans selection:bg-blue-500/30 scroll-smooth flex flex-col">
